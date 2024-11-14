@@ -1,6 +1,8 @@
 #pragma once
 
 #include "byte_stream.hh"
+#include <set>
+#include <vector>
 
 class Reassembler
 {
@@ -41,5 +43,17 @@ public:
   const Writer& writer() const { return output_.writer(); }
 
 private:
+  struct Node_t
+  {
+    uint64_t l;
+    uint64_t r;
+    std::string v;
+    bool operator<(const Node_t& b) const {return l < b.l;}
+  };
+
   ByteStream output_; // the Reassembler writes to this ByteStream
+  std::set<Node_t> odt{};
+  uint64_t bytes_pending_{};
+  std::vector<uint64_t> end_index_{};
+  auto split(uint64_t x);
 };

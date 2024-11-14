@@ -60,7 +60,7 @@ string_view Reader::peek() const
   // Your code here.
   if(bytes_buffered_ == 0) return {};
 
-  return string_view(stream_.front()).substr(to_delete,1);
+  return string_view(stream_.front()).substr(to_delete);
 }
 
 void Reader::pop( uint64_t len )
