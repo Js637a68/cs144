@@ -4,84 +4,88 @@ using namespace std;
 
 ByteStream::ByteStream( uint64_t capacity )
 : capacity_( capacity ) 
-, buffer()
-, end_write(false)
-, push_count(0)
-, pop_count(0)
  {}
 
 bool Writer::is_closed() const
 {
   // Your code here.
-  return end_write;
+  return close_;
 }
 
 void Writer::push( string data )
 {
   // Your code here.
-  for(auto c : data)
-  {
-    if(buffer.size() >= capacity_) 
-      return;
-    buffer.push_back(c);
-    push_count++;
-  }
+  if(is_closed() || data.empty() || available_capacity() == 0) return;
+  if(data.length() > available_capacity()) 
+    data.resize(available_capacity());
+
+  bytes_buffered_+=data.length();
+  bytes_pushed_ += data.length();
+  stream_.push(std::move(data));
   return;
 }
 
 void Writer::close()
 {
   // Your code here.
-  end_write = true;
+  close_ = true;
 }
 
 uint64_t Writer::available_capacity() const
 {
   // Your code here.
-  return capacity_ - buffer.size();
+  return capacity_ - bytes_buffered_;
 }
 
 uint64_t Writer::bytes_pushed() const
 {
   // Your code here.
-  return push_count;
+  return bytes_pushed_;
 }
 
 bool Reader::is_finished() const
 {
   // Your code here.
-  return buffer.empty() && end_write;
+  return close_ && bytes_buffered_ == 0;
 }
 
 uint64_t Reader::bytes_popped() const
 {
   // Your code here.
-  return pop_count; 
+  return bytes_popped_; 
 }
 
 string_view Reader::peek() const
 {
   // Your code here.
-  if(buffer.empty() || has_error()) 
-    return {};
-  return string_view(&buffer.front(), 1);
+  if(bytes_buffered_ == 0) return {};
+
+  return string_view(stream_.front()).substr(to_delete,1);
 }
 
 void Reader::pop( uint64_t len )
 {
   // Your code here.
-  if(len > buffer.size())
-    return;
+  bytes_buffered_ -= len;
+  bytes_popped_ += len;
 
-  for(uint64_t i = 0; i < len; ++i)
+  while(len != 0U)
   {
-    pop_count++;
-    buffer.pop_front();
+    const uint64_t& size = stream_.front().length() - to_delete;
+    if(len < size) 
+    {
+      to_delete += len;
+      break;
+    }
+    stream_.pop();
+    len -= size;
+    to_delete = 0;
   }
+
 }
 
 uint64_t Reader::bytes_buffered() const
 {
   // Your code here.
-  return buffer.size();
+  return bytes_buffered_;
 }
