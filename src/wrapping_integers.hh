@@ -30,4 +30,5 @@ public:
 
 protected:
   uint32_t raw_value_ {};
+  static const uint64_t BASE_ {1LL << 32};
 };

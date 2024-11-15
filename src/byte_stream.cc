@@ -15,6 +15,7 @@ bool Writer::is_closed() const
 void Writer::push( string data )
 {
   // Your code here.
+  if(has_error()) return;
   if(is_closed() || data.empty() || available_capacity() == 0) return;
   if(data.length() > available_capacity()) 
     data.resize(available_capacity());
