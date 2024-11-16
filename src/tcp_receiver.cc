@@ -5,11 +5,11 @@ using namespace std;
 void TCPReceiver::receive( TCPSenderMessage message )
 {
   // Your code here.
-  if(writer().has_error() && writer().is_closed()) return;
+  if(writer().has_error() || writer().is_closed()) return;
   if(message.RST) 
   {
     reader().set_error();
-    return;
+    //return;
   }
 
   if(!zero_point.has_value())
@@ -28,6 +28,7 @@ void TCPReceiver::receive( TCPSenderMessage message )
 TCPReceiverMessage TCPReceiver::send() const
 {
   // Your code here.
+  
   uint64_t MAX_UINT16 = (1LL << 16) - 1;
   uint16_t wsize{ static_cast<uint16_t>(writer().available_capacity() >= MAX_UINT16 ? MAX_UINT16 : writer().available_capacity())};
   bool RST{writer().has_error()};

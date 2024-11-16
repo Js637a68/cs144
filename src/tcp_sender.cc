@@ -25,23 +25,21 @@ void TCPSender::push( const TransmitFunction& transmit )
     if(FIN) return;
     auto msg {make_empty_message()};
 
-    if(input_.has_error()) {msg.RST = true; transmit(msg); return;}
+    //if(input_.has_error()) {msg.RST = true; transmit(msg); return;}
     if(!SYN)
     {
       msg.SYN = true;
       SYN = true;
     }
-    auto& payload = msg.payload;
 
+    auto& payload = msg.payload;
     uint64_t len = min(TCPConfig::MAX_PAYLOAD_SIZE, new_window_size_ - outstanding_count);
-    while(len > 0 && reader().bytes_buffered() != 0)
+    while(payload.size() < len && reader().bytes_buffered() != 0)
     {
-      string_view data = reader().peek();
-      auto l = min(data.length(), len);
-      len -= l;
-      data = data.substr(0,l);
-      payload += data;
-      input_.reader().pop(l);
+      string_view view { reader().peek() };
+      view = view.substr( 0, len - payload.size() );
+      payload += view;
+      input_.reader().pop( view.size() );
     }
 
     if ( !FIN && new_window_size_ > outstanding_count + msg.sequence_length()  && reader().is_finished() ) 
@@ -54,8 +52,6 @@ void TCPSender::push( const TransmitFunction& transmit )
       msg.FIN = true;
       FIN = true;
     }
-    
-
     
     if(msg.sequence_length() == 0) return;
     transmit(msg);

@@ -22,7 +22,7 @@ void Writer::push( string data )
 
   bytes_buffered_+=data.length();
   bytes_pushed_ += data.length();
-  stream_.push(std::move(data));
+  stream_.push(data);
   return;
 }
 
