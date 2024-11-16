@@ -11,6 +11,24 @@
 #include <optional>
 #include <queue>
 
+class RetransmissionTimer
+{
+public:
+  void reload(uint64_t initial_RTO_ms_) { RTO_ms_ = initial_RTO_ms_;; }
+  void tick(uint64_t ms_since_last_tick) { timer_ += ms_since_last_tick; }
+  void reset() { timer_ = 0; }
+  bool is_expired() { return timer_ >= RTO_ms_; }
+  void double_RTO() { RTO_ms_ += RTO_ms_; }
+  void start() { start_ = true; reset(); }
+  void stop() { start_ = false; }
+  bool is_start() { return start_; }
+
+private:
+  bool start_{};
+  uint64_t timer_{};
+  uint64_t RTO_ms_{};
+};
+
 class TCPSender
 {
 public:
@@ -48,4 +66,17 @@ private:
   ByteStream input_;
   Wrap32 isn_;
   uint64_t initial_RTO_ms_;
+
+  std::queue<TCPSenderMessage> outstanding_message_{};
+  uint64_t retransmission_count{}; 
+  uint64_t outstanding_count{};
+  uint16_t window_size_{1};
+
+  RetransmissionTimer Timer_{};
+
+  bool SYN{};
+  bool FIN{};
+
+  uint64_t next_ab_seqno{};
+  uint64_t window_left{};
 };

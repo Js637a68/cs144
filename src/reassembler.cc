@@ -38,6 +38,8 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     return do_close();
   }
 
+  if(!end_index_.empty() && first_index >= end_index_.front()) return do_close();
+
   uint64_t first_unassembled_index = writer().bytes_pushed();
   uint64_t first_unacceptable_index = first_unassembled_index + writer().available_capacity();
 
