@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <array>
 
 #include "exception.hh"
 #include "network_interface.hh"
@@ -33,11 +34,12 @@ public:
   // Route packets between the interfaces
   void route();
 
-  std::optional<RouteInfo> match(uint32_t);
-
-  using RouteInfo = std::pair<std::optional<Address>, size_t>;
 private:
   // The router's collection of network interfaces
   std::vector<std::shared_ptr<NetworkInterface>> _interfaces {};
-  std::unordered_map<std::pair<route_prefix, prefix_length>, routeinfo> router_{};
+
+  using info = std::pair<size_t, std::optional<Address>>;
+  std::array<std::unordered_map<uint32_t, info>, 32> routing_table_ {};
+
+  [[nodiscard]] auto match( uint32_t ) const noexcept -> std::optional<info>;
 };

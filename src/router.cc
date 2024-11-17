@@ -1,7 +1,10 @@
 #include "router.hh"
 
+#include <bit>
+#include <cstddef>
 #include <iostream>
-#include <limits>
+#include <optional>
+#include <ranges>
 
 using namespace std;
 
@@ -20,59 +23,39 @@ void Router::add_route( const uint32_t route_prefix,
        << static_cast<int>( prefix_length ) << " => " << ( next_hop.has_value() ? next_hop->ip() : "(direct)" )
        << " on interface " << interface_num << "\n";
 
-  // Your code here.
-  router_[make_pair(route_prefix, prefix_length)] = make_pair(next_hop, interface_num);
-
+  routing_table_[prefix_length][rotr( route_prefix, 32 - prefix_length )] = { interface_num, next_hop };
 }
 
-  /*
-   *   0                   1                   2                   3
-   *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |Version|  IHL  |Type of Service|          Total Length         |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |         Identification        |Flags|      Fragment Offset    |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |  Time to Live |    Protocol   |         Header Checksum       |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |                       Source Address                          |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |                    Destination Address                        |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   *  |                    Options                    |    Padding    |
-   *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   */
 // Go through all the interfaces, and route every incoming datagram to its proper outgoing interface.
 void Router::route()
 {
-  // Your code here.
-  for(auto& p:_interfaces)
-  {
-    auto&& interface = p.get();
-    while(!datagrams_received_.empty())
-    {
-      auto&& dgram = datagrams_received_.front();
-      if(dgram.header.ttl <= 1) continue;
+  for ( const auto& interface : _interfaces ) {
+    auto&& datagrams_received { interface->datagrams_received() };
+    while ( not datagrams_received.empty() ) {
+      InternetDatagram datagram { move( datagrams_received.front() ) };
+      datagrams_received.pop();
 
-      dgram.header.ttl--;
-      
-      const optional<RouteInfo>& mp { match( datagram.header.dst ) };
-      if(!mp.has_value()) continue;
+      if ( datagram.header.ttl <= 1 ) {
+        continue;
+      }
+      datagram.header.ttl -= 1;
+      datagram.header.compute_checksum();
 
-      const auto& [next_hop, num] { mp.value() };
-      _interfaces[num].send_datagram(dgram, next_hop.value());
+      const optional<info>& mp { match( datagram.header.dst ) };
+      if ( not mp.has_value() ) {
+        continue;
+      }
+      const auto& [num, next_hop] { mp.value() };
+      _interfaces[num]->send_datagram( datagram,
+                                       next_hop.value_or( Address::from_ipv4_numeric( datagram.header.dst ) ) );
     }
   }
 }
 
-optional<RouteInfo> Router::match(uint32_t ipv4)
+[[nodiscard]] auto Router::match( uint32_t addr ) const noexcept -> optional<info>
 {
-  map<uint8_t, RouteInfo> ans_set;
-  for(auto& router : router_)
-  {
-    auto& [netmask, info] = router;
-    if(netmask.first == (ipv4 && ~(1U<<(32-netmask.second) - 1) )) ans_set.insert(move(info));
-  }
-  if(ans_set.empty()) return nullopt;
-  return {ans_set.cbegin()->seocnd};
+  auto adaptor = views::filter( [&addr]( const auto& mp ) { return mp.contains( addr >>= 1 ); } )
+                 | views::transform( [&addr]( const auto& mp ) -> info { return mp.at( addr ); } );
+  auto res { routing_table_ | views::reverse | adaptor | views::take( 1 ) }; // just kidding
+  return res.empty() ? nullopt : optional<info> { res.front() };
 }
