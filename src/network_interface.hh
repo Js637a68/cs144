@@ -5,6 +5,7 @@
 #include "address.hh"
 #include "ethernet_frame.hh"
 #include "ipv4_datagram.hh"
+#include <unordered_map>
 
 // A "network interface" that connects IP (the internet layer, or network layer)
 // with Ethernet (the network access layer, or link layer).
@@ -59,6 +60,10 @@ public:
   // Called periodically when time elapses
   void tick( size_t ms_since_last_tick );
 
+  ARPMessage make_arp( const uint16_t opcode,
+                     const EthernetAddress target_ethernet_address,
+                     const uint32_t& target_ip_address );
+
   // Accessors
   const std::string& name() const { return name_; }
   const OutputPort& output() const { return *port_; }
@@ -81,4 +86,11 @@ private:
 
   // Datagrams that have been received
   std::queue<InternetDatagram> datagrams_received_ {};
+
+  std::unordered_map<uint32_t, std::pair<EthernetAddress, size_t>> ARP_cache_ {};
+  std::unordered_map<uint32_t, size_t> ARP_timer_{};
+  std::unordered_map<uint32_t, std::vector<InternetDatagram>> wait_to_send{};
+
+  static constexpr uint64_t EXPIR_TIME = 30000;
+  static constexpr uint64_t ARP_TIMEOUT = 5000;
 };
