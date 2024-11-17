@@ -4,6 +4,7 @@
 #include <iostream>
 #include <span>
 #include <string>
+#include "tcp_minnow_socket.hh"
 
 using namespace std;
 
