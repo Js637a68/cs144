@@ -23,7 +23,7 @@ void Router::add_route( const uint32_t route_prefix,
        << static_cast<int>( prefix_length ) << " => " << ( next_hop.has_value() ? next_hop->ip() : "(direct)" )
        << " on interface " << interface_num << "\n";
 
-  routing_table_[prefix_length][rotr( route_prefix, 32 - prefix_length )] = { interface_num, next_hop };
+  routing_table_[route_prefix].push_back( {prefix_length, interface_num, next_hop} );
 }
 
 // Go through all the interfaces, and route every incoming datagram to its proper outgoing interface.
@@ -45,17 +45,25 @@ void Router::route()
       if ( not mp.has_value() ) {
         continue;
       }
-      const auto& [num, next_hop] { mp.value() };
+      const auto& [_, num, next_hop] { mp.value() };
       _interfaces[num]->send_datagram( datagram,
                                        next_hop.value_or( Address::from_ipv4_numeric( datagram.header.dst ) ) );
     }
   }
 }
 
-[[nodiscard]] auto Router::match( uint32_t addr ) const noexcept -> optional<info>
+auto Router::match( uint32_t addr ) const noexcept -> optional<info>
 {
-  auto adaptor = views::filter( [&addr]( const auto& mp ) { return mp.contains( addr >>= 1 ); } )
-                 | views::transform( [&addr]( const auto& mp ) -> info { return mp.at( addr ); } );
-  auto res { routing_table_ | views::reverse | adaptor | views::take( 1 ) }; // just kidding
-  return res.empty() ? nullopt : optional<info> { res.front() };
+  optional<info> res =nullopt;
+  for(auto& item:routing_table_)
+  {
+    for(auto& i:item.second)
+    {
+      uint8_t umask = 32 - get<0>(i);
+      uint32_t di = ( addr&~( (1LL << umask) - 1) );
+      if(item.first != di ) continue;
+      if (res == nullopt || get<0>(res.value()) < get<0>(i)) res = i;
+    }
+  }
+  return res;
 }
