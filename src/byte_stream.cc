@@ -15,7 +15,6 @@ bool Writer::is_closed() const
 void Writer::push( string data )
 {
   // Your code here.
-  if(has_error()) return;
   if(is_closed() || data.empty() || available_capacity() == 0) return;
   if(data.length() > available_capacity()) 
     data.resize(available_capacity());
@@ -60,7 +59,6 @@ string_view Reader::peek() const
 {
   // Your code here.
   if(bytes_buffered_ == 0) return {};
-
   return string_view(stream_.front()).substr(to_delete);
 }
 
@@ -82,7 +80,6 @@ void Reader::pop( uint64_t len )
     len -= size;
     to_delete = 0;
   }
-
 }
 
 uint64_t Reader::bytes_buffered() const

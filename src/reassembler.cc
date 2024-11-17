@@ -23,7 +23,6 @@ auto Reassembler::split(uint64_t x)
 void Reassembler::insert( uint64_t first_index, string data, bool is_last_substring)
 {
   // Your code here.
-  if(writer().has_error()) return;
 
   auto do_close = [&]{
     if(!end_index_.empty() && end_index_.front() == writer().bytes_pushed())
